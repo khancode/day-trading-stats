@@ -1,0 +1,13 @@
+{
+  "name": "day-trading-stats",
+  "version": "1.0.0",
+  "description": "Take input of day trading transactions .csv file and calculate net profit/loss in percentage/dollars for each trade.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "khancode",
+  "license": "ISC",
+  "dependencies": {}
+}
