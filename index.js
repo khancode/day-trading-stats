@@ -1,10 +1,66 @@
 const fs = require('fs');
 const Transaction = require('./models/Transaction');
+const NetTransaction = require('./models/NetTransaction');
+const PriorityQueue = require('./utilities/PriorityQueue');
 
 readCsvFile()
     .then((transactions) => {
-        console.log('transactions:', transactions);
+        const netObj = analyzeTransactions(transactions);
+        console.log('netTransactions:', netObj.netTransactions);
+        console.log('totalNetPercentage:', netObj.totalNetPercentage);
+        console.log('totalNetDollars:', netObj.totalNetDollars);
     });
+
+function analyzeTransactions(transactions) {
+    const sharesMap = new Map();
+    const netTransactions = [];
+    let totalNetPercentage = 0;
+    let totalNetDollars = 0;
+
+    transactions.forEach((transaction) => {
+        const { isBought, symbol, shares, price } = transaction;
+
+        if (isBought) {
+            if (!sharesMap.has(symbol)) {
+                sharesMap.set(symbol, new PriorityQueue((a, b) => a.price - b.price));
+            }
+            sharesMap.get(symbol).add({ price, shares });
+
+            netTransactions.push(new NetTransaction(transaction, null, null));
+        } else {
+            let sharesToSellRemainder = shares;
+            let netPercentage = 0;
+            let netDollar = 0;
+            do {
+                const prevBuy = sharesMap.get(symbol).poll();
+
+                let sharesToSell;
+                if (shares > prevBuy.shares) {
+                    sharesToSell = prevBuy.shares;
+                    sharesToSellRemainder -= sharesToSell;
+                } else if (shares <= prevBuy.shares) {
+                    sharesToSell = shares;
+                    sharesToSellRemainder = 0;
+
+                    if (shares < prevBuy.shares) {
+                        prevBuy.shares -= shares;
+                        sharesMap.get(symbol).add(prevBuy);
+                    }
+                }
+
+                netPercentage += ((price - prevBuy.price) / prevBuy.price) * (sharesToSell / shares) * 100;
+                netDollar += (price * sharesToSell) - (prevBuy.price * sharesToSell);
+
+                totalNetPercentage += netPercentage;
+                totalNetDollars += netDollar;
+            } while (sharesToSellRemainder > 0);
+
+            netTransactions.push(new NetTransaction(transaction, netPercentage, netDollar));
+        }
+    });
+
+    return { netTransactions, totalNetPercentage, totalNetDollars };
+}
 
 function readCsvFile() {
     const promise = new Promise((resolve, reject) => {

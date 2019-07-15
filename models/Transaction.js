@@ -11,6 +11,10 @@ class Transaction {
         this.netCashBalance = netCashBalance;
         this.fees = { comission, reg: regFee};
     }
+
+    get isBought() {
+        return this.type === 'Bought';
+    }
 }
 
 module.exports = Transaction;
